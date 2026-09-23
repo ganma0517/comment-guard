@@ -1,0 +1,21 @@
+name: comment-guard
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  comment-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check changed comments
+        run: |
+          chmod +x tools/check_comments.sh
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            tools/check_comments.sh --range "origin/${{ github.base_ref }}...HEAD"
+          else
+            tools/check_comments.sh --range "${{ github.event.before }}..${{ github.sha }}"
+          fi

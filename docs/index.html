@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>comment-guard 講義：避免 AI 代理留下低價值註解</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172026;
+      --muted: #5d6972;
+      --line: #d8dee4;
+      --paper: #fbfaf7;
+      --panel: #ffffff;
+      --accent: #0f766e;
+      --accent-2: #9a3412;
+      --code: #f3f5f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", "Segoe UI", sans-serif;
+      line-height: 1.65;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    header {
+      padding: 48px 22px 28px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+    main, .wrap {
+      width: min(980px, calc(100vw - 36px));
+      margin: 0 auto;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 5vw, 4.2rem);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+    .subtitle {
+      max-width: 760px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 1.08rem;
+    }
+    nav {
+      margin-top: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    nav a {
+      color: var(--accent);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      text-decoration: none;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: .94rem;
+    }
+    section {
+      padding: 34px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    h2 {
+      font-size: 1.6rem;
+      margin: 0 0 14px;
+      letter-spacing: 0;
+    }
+    h3 {
+      margin: 22px 0 8px;
+      font-size: 1.08rem;
+    }
+    p { margin: 0 0 14px; }
+    ul, ol { padding-left: 1.4rem; }
+    li { margin: 7px 0; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .label {
+      display: inline-block;
+      font-size: .78rem;
+      color: #fff;
+      background: var(--accent);
+      border-radius: 999px;
+      padding: 2px 8px;
+      margin-bottom: 8px;
+    }
+    .warn { background: var(--accent-2); }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: var(--code);
+      border-radius: 6px;
+    }
+    code { padding: 1px 4px; }
+    pre {
+      overflow-x: auto;
+      padding: 14px;
+      border: 1px solid var(--line);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      margin-top: 14px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f5f7f8; }
+    a { color: var(--accent); }
+    footer {
+      color: var(--muted);
+      padding: 30px 0 46px;
+      font-size: .92rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>comment-guard 講義</h1>
+      <p class="subtitle">給使用 AI coding agent 的團隊：如何把「不要留下低價值註解」從口頭提醒，變成 repo 會自動執行的規則。</p>
+      <nav aria-label="章節">
+        <a href="#problem">問題</a>
+        <a href="#evidence">證據</a>
+        <a href="#rules">判斷規則</a>
+        <a href="#workflow">導入流程</a>
+        <a href="#toolkit">工具包</a>
+        <a href="#sources">來源</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <section id="problem">
+      <h2>1. 問題不是「註解太多」，而是註解留下錯誤訊號</h2>
+      <p>AI 代理常見的壞註解有三類：複述程式碼、記錄修改歷程、以及修改後沒有同步更新的過時註解。真正麻煩的是它們會成為下一輪生成的範例，讓代理以為這是 repo 的慣例。</p>
+      <div class="grid">
+        <div class="card">
+          <span class="label warn">移除</span>
+          <h3>複述 what</h3>
+          <p><code># Convert the date strings to datetime objects</code> 這類註解通常只是把下一行程式翻成自然語言。</p>
+        </div>
+        <div class="card">
+          <span class="label warn">移除</span>
+          <h3>記錄修改過程</h3>
+          <p><code># fixed per user request</code>、<code># NEW:</code>、<code># 已修正</code> 應該進 commit message，不該進程式碼。</p>
+        </div>
+        <div class="card">
+          <span class="label">保留</span>
+          <h3>解釋 why</h3>
+          <p>資料編碼依據、演算法取捨、外部 API 限制、研究倫理提醒，這些是程式碼自己無法表達的脈絡。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="evidence">
+      <h2>2. 相關文章與討論怎麼支持這件事</h2>
+      <table>
+        <thead>
+          <tr><th>來源類型</th><th>重點</th><th>對 comment-guard 的啟示</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>工程實務指南</td>
+            <td>Google Engineering Practices 建議審查者確認註解是否必要；通常註解應說明程式存在的理由，而不是重說程式在做什麼。</td>
+            <td>規則檔要明確寫成「why, not what」。</td>
+          </tr>
+          <tr>
+            <td>開發者討論</td>
+            <td>GitHub Community 有開發者回報 Copilot 會產生過多、冗餘、干擾閱讀的註解，且有人希望能單獨關閉註解建議。</td>
+            <td>單靠提醒代理「不要寫註解」不穩定，需要本地 hook 或 CI。</td>
+          </tr>
+          <tr>
+            <td>軟體工程研究</td>
+            <td>過時註解可能誤導後續維護者；LLM 生成註解也可能包含可被證明不正確的敘述。</td>
+            <td>先攔截最容易機械辨識的壞註解，再把細緻判斷留給 review。</td>
+          </tr>
+          <tr>
+            <td>AI review 研究</td>
+            <td>針對代理產生的 code review comments，未解決討論常見原因包括錯誤建議與設計決策衝突；冗長複雜的評論較不容易被採納。</td>
+            <td>工具訊息要短，檢查範圍要窄，避免把風格偏好偽裝成硬性錯誤。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="rules">
+      <h2>3. 判斷規則</h2>
+      <h3>可以保留</h3>
+      <ul>
+        <li>說明某段程式為何採用不直覺做法。</li>
+        <li>記錄資料清理、編碼、欄位對照的研究判斷。</li>
+        <li>標明外部服務、檔案格式、法規或倫理限制。</li>
+        <li>公共 API 文件、函式用途、參數契約與例外行為。</li>
+      </ul>
+      <h3>應該移除</h3>
+      <ul>
+        <li>把下一行程式翻成中文或英文的註解。</li>
+        <li>只對當次修改有意義的註解。</li>
+        <li>含有 <code>NEW</code>、<code>FIXED</code>、<code>UPDATED</code>、<code>已修正</code>、<code>依要求</code> 這類歷程字樣的註解。</li>
+        <li>程式已改，但註解還在描述舊行為。</li>
+      </ul>
+    </section>
+
+    <section id="workflow">
+      <h2>4. 導入流程</h2>
+      <ol>
+        <li><strong>先掃描現有 repo：</strong><code>tools/check_comments.sh --all</code>，清掉會被 AI 模仿的壞範例。</li>
+        <li><strong>固化規則：</strong>把 <code>rules.md</code> 寫入 <code>CLAUDE.md</code> 或 <code>AGENTS.md</code>。</li>
+        <li><strong>安裝 hook：</strong>讓 staged diff 在 commit 前自動檢查。</li>
+        <li><strong>加 CI：</strong>多人協作或 GitHub repo 建議加 workflow，避免只靠個人電腦設定。</li>
+        <li><strong>保留人工 review：</strong>工具只能抓固定字樣，複述型註解仍需要人判斷。</li>
+      </ol>
+    </section>
+
+    <section id="toolkit">
+      <h2>5. comment-guard 工具包</h2>
+      <pre><code>comment-guard/
+├── README.md
+├── check_comments.sh
+├── install.sh
+├── rules.md
+├── docs/
+│   ├── index.html
+│   └── research-notes.md
+└── .github/
+    └── workflows/
+        └── comment-guard.yml</code></pre>
+      <p>安裝後，日常使用只需要兩個指令：</p>
+      <pre><code>tools/check_comments.sh --all
+tools/check_comments.sh</code></pre>
+    </section>
+
+    <section id="sources">
+      <h2>6. 來源</h2>
+      <ol>
+        <li><a href="https://google.github.io/eng-practices/review/reviewer/looking-for.html">Google Engineering Practices: What to look for in a code review</a></li>
+        <li><a href="https://github.com/orgs/community/discussions/59697">GitHub Community #59697: Copilot Chat - Excessive comments in generated code</a></li>
+        <li><a href="https://github.com/orgs/community/discussions/157778">GitHub Community #157778: stop Copilot from writing comments</a></li>
+        <li><a href="https://arxiv.org/abs/2403.00251">Huang et al. 2024: Are your comments outdated?</a></li>
+        <li><a href="https://arxiv.org/abs/2406.14836">Kang et al. 2024: Identifying Inaccurate Descriptions in LLM-generated Code Comments</a></li>
+        <li><a href="https://arxiv.org/abs/2607.21997">Cynthia et al. 2026: Understanding Developer Responses to Agent-Generated Code Review Comments</a></li>
+      </ol>
+    </section>
+  </main>
+  <footer>
+    <div class="wrap">Prepared for repo-level AI coding hygiene. Last updated: 2026-09-23.</div>
+  </footer>
+</body>
+</html>
