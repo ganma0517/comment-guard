@@ -4,6 +4,8 @@
 
 It does not try to judge every comment. The goal is deliberately narrow: stop the obvious low-value comments that AI agents often imitate and spread.
 
+**HTML lecture:** [docs/index.html](https://github.com/ganma0517/comment-guard/blob/main/docs/index.html)
+
 ## Why This Exists
 
 AI coding agents often leave comments that explain the edit session rather than the software. Once those comments land in a repository, later agents may copy the style and produce more of the same.
