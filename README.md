@@ -4,7 +4,7 @@
 
 It does not try to judge every comment. The goal is deliberately narrow: stop the obvious low-value comments that AI agents often imitate and spread.
 
-**HTML lecture:** [docs/index.html](https://github.com/ganma0517/comment-guard/blob/main/docs/index.html)
+**HTML lecture:** <https://ganma0517.github.io/comment-guard/>
 
 ## Why This Exists
 
